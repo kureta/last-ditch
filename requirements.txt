@@ -1,0 +1,14 @@
+einops
+jsonargparse[signatures]
+jupyter
+librosa
+matplotlib
+numpy
+pandas
+plotly
+plotly-resampler
+pre-commit
+torch
+torchaudio
+torchcrepe @ git+https://github.com/kureta/torchcrepe.git
+torchvision
