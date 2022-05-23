@@ -7,6 +7,7 @@ from pytorch_lightning import LightningDataModule, LightningModule
 from dsp import HarmonicOscillator, FilteredNoise, ConvolutionalReverb
 from loss import distance
 from model import Controller
+from soundfile import write as wav_write
 from constants import *
 
 
@@ -52,11 +53,12 @@ class DDSP(LightningModule):
         self.log('val/loss', loss)
         if batch_nb < 4:
             self.logger.experiment.add_audio(
-                f'{batch_nb}-orig',
+                f'{batch_nb}',
                 y[0, 0],
                 self.global_step,
                 sample_rate=SAMPLE_RATE
             )
+            wav_write(f'{batch_nb}.wav', y[0].cpu().numpy().T, SAMPLE_RATE)
 
         return loss
 
