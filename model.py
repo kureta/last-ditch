@@ -91,7 +91,7 @@ class Controller(nn.Module):
         noise_distribution = self.dense_filter(latent)
         noise_distribution = self.modified_sigmoid(noise_distribution)
 
-        return (f0, total_harm_amp.transpose(1, 2), harm_amps.transpose(1, 2).unsqueeze(0)), noise_distribution.transpose(1, 2).unsqueeze(0)
+        return (f0, total_harm_amp.transpose(1, 2), harm_amps.transpose(1, 2).unsqueeze(1)), noise_distribution.transpose(1, 2).unsqueeze(1)
 
     @staticmethod
     def modified_sigmoid(x: Tensor) -> Tensor:

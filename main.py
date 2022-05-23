@@ -1,8 +1,4 @@
-# main.py
-import librosa
-import numpy as np
 import torch
-import torchcrepe
 from pytorch_lightning.utilities.cli import LightningCLI
 
 from torch.utils.data import Dataset, DataLoader
@@ -44,9 +40,7 @@ class DDSP(LightningModule):
         y = self(f0, amp)
         loss = distance(x, y)
 
-        if batch_nb % 100 == 0:
-            print(y.shape)
-            print('==================')
+        if batch_nb == 0:
             write_wav('./sick.wav', y[0].detach().cpu().numpy().T, SAMPLE_RATE)
 
         return loss
@@ -55,52 +49,30 @@ class DDSP(LightningModule):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
 
 
-TEST_FILE_PATH = '/home/kureta/Music/cello-test.wav'
-
-
 class AudioDataset(Dataset):
     def __init__(self):
         super().__init__()
-        audio, sr = librosa.load(TEST_FILE_PATH, sr=SAMPLE_RATE, mono=False)
-        mono_audio, sr = librosa.load(TEST_FILE_PATH, sr=SAMPLE_RATE, mono=True)
-        self.audio = torch.from_numpy(audio[:, :-(audio.shape[-1] % HOP_LENGTH)]).type(torch.FloatTensor)
-        mono_audio = mono_audio[None, :]
-        mono_audio = mono_audio[:, :-(mono_audio.shape[-1] % HOP_LENGTH)]
-
-        resampled_audio = librosa.resample(mono_audio, orig_sr=SAMPLE_RATE, target_sr=16000)
-        freq, _, _ = torchcrepe.predict(torch.from_numpy(resampled_audio), 16000,
-                                        hop_length=HOP_LENGTH // 3,
-                                        decoder=torchcrepe.decode.weighted_argmax,
-                                        device='cuda', return_periodicity=True)
-        self.freq = freq.type(torch.FloatTensor)
-
-        stft = librosa.stft(mono_audio, n_fft=N_FFT, hop_length=HOP_LENGTH)
-        freqs = librosa.core.fft_frequencies(sr=SAMPLE_RATE, n_fft=N_FFT)
-        weights = librosa.A_weighting(freqs)
-        xmag = weights[None, :, None] + librosa.amplitude_to_db(np.abs(stft))
-        self.loudness = torch.from_numpy(np.mean(xmag, axis=-2)).type(torch.FloatTensor)
+        self.audio = torch.load(CELLO_AUDIO_DIR.parent / 'audio.pth')
+        self.loudness = torch.load(CELLO_AUDIO_DIR.parent / 'loudness.pth')
+        self.f0 = torch.load(CELLO_AUDIO_DIR.parent / 'f0.pth')
 
     def __len__(self):
-        return 1
+        return self.audio.shape[0]
 
-    def __getitem__(self, item):
-        return self.freq, self.loudness, self.audio
+    def __getitem__(self, idx):
+        return self.f0[idx], self.loudness[idx], self.audio[idx]
 
 
 class AudioDataModule(LightningDataModule):
     def __init__(self):
         super().__init__()
-        audio, sr = librosa.load(TEST_FILE_PATH, sr=SAMPLE_RATE, mono=False)
-        if len(audio.shape) == 1:
-            audio = audio[None, :]
-        self.audio = audio[:, :-(len(audio) % HOP_LENGTH)]
         self.audio_dataset = None
 
     def setup(self, stage=None):
         self.audio_dataset = AudioDataset()
 
     def train_dataloader(self):
-        return DataLoader(self.audio_dataset)
+        return DataLoader(self.audio_dataset, batch_size=8, shuffle=True, num_workers=6)
 
     def val_dataloader(self):
         return DataLoader(self.audio_dataset)

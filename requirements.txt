@@ -12,3 +12,4 @@ torch
 torchaudio
 torchcrepe @ git+https://github.com/kureta/torchcrepe.git
 torchvision
+tqdm
