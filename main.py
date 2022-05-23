@@ -7,7 +7,6 @@ from pytorch_lightning import LightningDataModule, LightningModule
 from dsp import HarmonicOscillator, FilteredNoise, ConvolutionalReverb
 from loss import distance
 from model import Controller
-from soundfile import write as write_wav
 from constants import *
 
 
@@ -80,25 +79,27 @@ class AudioDataset(Dataset):
 class AudioDataModule(LightningDataModule):
     def __init__(self):
         super().__init__()
-        self.audio_dataset = None
+        self.train_dataset = None
+        self.val_dataset = None
 
     def setup(self, stage=None):
-        self.audio_dataset = AudioDataset()
+        self.train_dataset = AudioDataset()
+        self.val_dataset = AudioDataset()
+        self.val_dataset.features = self.val_dataset.features[:64]
 
     def train_dataloader(self):
-        return DataLoader(self.audio_dataset,
+        return DataLoader(self.train_dataset,
                           batch_size=8, shuffle=True, num_workers=4,
                           pin_memory=True, persistent_workers=True)
 
     def val_dataloader(self):
-        return DataLoader(self.audio_dataset,
+        return DataLoader(self.val_dataset,
                           batch_size=8, shuffle=False, num_workers=4,
                           pin_memory=False, persistent_workers=False)
 
 
 def cli_main():
-    cli = LightningCLI(DDSP, AudioDataModule, save_config_overwrite=True, run=False)
-    cli.trainer.fit(cli.model, datamodule=cli.datamodule)
+    cli = LightningCLI(DDSP, AudioDataModule)
 
 
 if __name__ == '__main__':
