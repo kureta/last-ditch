@@ -71,17 +71,30 @@ class AudioDataset(Dataset):
         return self.audio[idx]
 
 
-def prepare_loudness(samples_dir: Path, batch_size=32):
-    audio = AudioDataset(samples_dir.parent / 'audio.pth')
-    loader = DataLoader(audio, batch_size=batch_size, shuffle=False)
+def prepare_loudness(samples_dir: Path):
+    audio = torch.load(samples_dir.parent / 'audio.pth')
     loudness = []
-    for example in tqdm(loader, total=math.ceil(len(audio) / batch_size)):
-        example = torch.mean(example, dim=1)
-        loudness.append(get_loudness(example.cuda()).cpu())
+    for example in tqdm(audio):
+        mono = torch.mean(example, dim=0).unsqueeze(0)
+        amp = get_loudness(mono.cuda()).cpu()
 
-    loudness = torch.cat(loudness, dim=0)[:, None, :]
+        resampled = AF.resample(mono, SAMPLE_RATE, 16000)
+        f0, _, _ = torchcrepe.predict(resampled,
+                                      sample_rate=16000,
+                                      hop_length=HOP_LENGTH // 3,
+                                      fmin=50.,
+                                      decoder=torchcrepe.decode.weighted_argmax,
+                                      device='cuda', return_periodicity=True)
 
-    torch.save(loudness, samples_dir.parent / 'loudness.pth')
+        if torch.isnan(f0).any():
+            torch.save(example, 'bad.pth')
+            torch.save(f0, 'fbad.pth')
+            print('something is fishy')
+            exit(1)
+
+        loudness.append({'audio': example, 'loudness': amp, 'f0': f0})
+
+    torch.save(loudness, samples_dir.parent / 'features.pth')
 
 
 def prepare_f0(samples_dir: Path):
@@ -112,7 +125,7 @@ def prepare_f0(samples_dir: Path):
 def main():
     # prepare_audio(CELLO_AUDIO_DIR)
     prepare_loudness(CELLO_AUDIO_DIR)
-    prepare_f0(CELLO_AUDIO_DIR)
+    # prepare_f0(CELLO_AUDIO_DIR)
 
 
 if __name__ == '__main__':

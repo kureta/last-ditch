@@ -40,8 +40,24 @@ class DDSP(LightningModule):
         y = self(f0, amp)
         loss = distance(x, y)
 
-        if batch_nb == 0:
-            write_wav('./sick.wav', y[0].detach().cpu().numpy().T, SAMPLE_RATE)
+        self.log('train/loss', loss)
+
+        return loss
+
+    def validation_step(self, batch, batch_nb):
+        f0, amp, x = batch
+        with torch.no_grad():
+            y = self(f0, amp)
+            loss = distance(x, y)
+
+        self.log('val/loss', loss)
+        if batch_nb < 4:
+            self.logger.experiment.add_audio(
+                f'{batch_nb}-orig',
+                y[0, 0],
+                self.global_step,
+                sample_rate=SAMPLE_RATE
+            )
 
         return loss
 
@@ -52,15 +68,13 @@ class DDSP(LightningModule):
 class AudioDataset(Dataset):
     def __init__(self):
         super().__init__()
-        self.audio = torch.load(CELLO_AUDIO_DIR.parent / 'audio.pth')
-        self.loudness = torch.load(CELLO_AUDIO_DIR.parent / 'loudness.pth')
-        self.f0 = torch.load(CELLO_AUDIO_DIR.parent / 'f0.pth')
+        self.features = torch.load(CELLO_AUDIO_DIR.parent / 'features.pth')
 
     def __len__(self):
-        return self.audio.shape[0]
+        return len(self.features)
 
     def __getitem__(self, idx):
-        return self.f0[idx], self.loudness[idx], self.audio[idx]
+        return self.features[idx]['f0'], self.features[idx]['loudness'], self.features[idx]['audio']
 
 
 class AudioDataModule(LightningDataModule):
@@ -72,16 +86,20 @@ class AudioDataModule(LightningDataModule):
         self.audio_dataset = AudioDataset()
 
     def train_dataloader(self):
-        return DataLoader(self.audio_dataset, batch_size=8, shuffle=True, num_workers=6)
+        return DataLoader(self.audio_dataset,
+                          batch_size=8, shuffle=True, num_workers=4,
+                          pin_memory=True, persistent_workers=True)
 
     def val_dataloader(self):
-        return DataLoader(self.audio_dataset)
-
-    def test_dataloader(self):
-        return DataLoader(self.audio_dataset)
-
-    def predict_dataloader(self):
-        return DataLoader(self.audio_dataset)
+        return DataLoader(self.audio_dataset,
+                          batch_size=8, shuffle=False, num_workers=4,
+                          pin_memory=False, persistent_workers=False)
 
 
-cli = LightningCLI(DDSP, AudioDataModule)
+def cli_main():
+    cli = LightningCLI(DDSP, AudioDataModule, save_config_overwrite=True, run=False)
+    cli.trainer.fit(cli.model, datamodule=cli.datamodule)
+
+
+if __name__ == '__main__':
+    cli_main()
