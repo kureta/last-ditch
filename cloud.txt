@@ -1,0 +1,6 @@
+einops
+jsonargparse[signatures]
+librosa
+torchaudio
+torchcrepe @ git+https://github.com/kureta/torchcrepe.git
+pytorch-lightning
