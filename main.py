@@ -67,9 +67,9 @@ class DDSP(LightningModule):
 
 
 class AudioDataset(Dataset):
-    def __init__(self):
+    def __init__(self, path):
         super().__init__()
-        self.features = torch.load(CELLO_AUDIO_DIR.parent / 'features.pth')
+        self.features = torch.load(path)
 
     def __len__(self):
         return len(self.features)
@@ -79,15 +79,16 @@ class AudioDataset(Dataset):
 
 
 class AudioDataModule(LightningDataModule):
-    def __init__(self, batch_size=8):
+    def __init__(self, batch_size=8, path=CELLO_AUDIO_DIR.parent / 'features.pth'):
         super().__init__()
         self.train_dataset = None
         self.val_dataset = None
         self.batch_size = batch_size
+        self.path = path
 
     def setup(self, stage=None):
-        self.train_dataset = AudioDataset()
-        self.val_dataset = AudioDataset()
+        self.train_dataset = AudioDataset(self.path)
+        self.val_dataset = AudioDataset(self.path)
         self.val_dataset.features = self.val_dataset.features[:64]
 
     def train_dataloader(self):
