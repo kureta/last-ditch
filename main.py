@@ -18,10 +18,16 @@ class DDSP(LightningModule):
                  in_ch: int = 1,
                  out_ch: int = 2,
                  reverb_dur: int = 3,
+                 mlp_units: int = 512,
+                 mlp_layers: int = 3,
+                 gru_units: int = 512,
+                 gru_layers: int = 1,
                  lr=0.003,
                  ):
         super().__init__()
-        self.controller = Controller(n_harmonics, n_filters)
+        self.controller = Controller(n_harmonics, n_filters,
+                                     mlp_units, mlp_layers,
+                                     gru_units, gru_layers)
         self.harmonics = HarmonicOscillator(n_harmonics, in_ch)
         self.noise = FilteredNoise(n_filters, in_ch)
         self.reverb = ConvolutionalReverb(reverb_dur, in_ch, out_ch)
