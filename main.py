@@ -79,10 +79,11 @@ class AudioDataset(Dataset):
 
 
 class AudioDataModule(LightningDataModule):
-    def __init__(self):
+    def __init__(self, batch_size=8):
         super().__init__()
         self.train_dataset = None
         self.val_dataset = None
+        self.batch_size = batch_size
 
     def setup(self, stage=None):
         self.train_dataset = AudioDataset()
@@ -91,12 +92,12 @@ class AudioDataModule(LightningDataModule):
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset,
-                          batch_size=8, shuffle=True, num_workers=4,
+                          batch_size=self.batch_size, shuffle=True, num_workers=4,
                           pin_memory=True, persistent_workers=True)
 
     def val_dataloader(self):
         return DataLoader(self.val_dataset,
-                          batch_size=8, shuffle=False, num_workers=4,
+                          batch_size=self.batch_size, shuffle=False, num_workers=4,
                           pin_memory=False, persistent_workers=False)
 
 
